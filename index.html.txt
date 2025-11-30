@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>¿Cómo han estado estos días conmigo?</title>
+  <style>
+    :root{
+      --bg-main:#0a3b7a; /* deep blue */
+      --accent:#4da6ff; /* lighter blue */
+      --dot:#ffffff;
+      --glow:rgba(77,166,255,0.18);
+      --sad-bg:#1f1f1f;
+      --sad-ink:#d9d9d9;
+    }
+    *{box-sizing:border-box}
+    body,html{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;color:#fff}
+
+    /* Generic page layout */
+    .page{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+    .hidden{display:none}
+
+    /* Background rain of glowing dots (main) */
+    .main{background:linear-gradient(180deg,var(--bg-main),#06294f);overflow:hidden}
+    .question{font-size:clamp(18px,3.6vw,32px);text-align:center;margin-bottom:24px;font-weight:600}
+
+    .choices{display:flex;gap:24px}
+    .card{width:220px;height:160px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;cursor:pointer;position:relative;user-select:none;box-shadow:0 8px 30px rgba(2,6,23,0.45);transition:transform .18s ease, box-shadow .18s}
+    .card:active{transform:translateY(3px)}
+    .card.bien{background:linear-gradient(180deg,#2f8ae8,#164f9a);}
+    .card.mal{background:linear-gradient(180deg,#1b2a3a,#10202b);}
+
+    /* glowing halos around small dots */
+    .card::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;box-shadow:0 0 40px rgba(77,166,255,0.06) inset}
+
+    /* falling dots layer (reused) */
+    .rain-area{position:absolute;inset:0;pointer-events:none}
+    .dot{position:absolute;width:6px;height:6px;border-radius:999px;background:var(--dot);box-shadow:0 0 14px var(--glow);opacity:.95}
+
+    /* Poem page */
+    .poem{max-width:720px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));padding:28px;border-radius:12px;backdrop-filter:blur(6px);box-shadow:0 10px 40px rgba(2,6,23,0.45);text-align:left;color:#fff}
+    .poem pre{white-space:pre-wrap;font-family:inherit;font-size:18px;line-height:1.45;margin:18px 0}
+
+    /* star */
+    .star-wrap{position:absolute;top:24px;left:24px}
+    .star{width:72px;height:72px;filter:drop-shadow(0 6px 18px rgba(255,220,80,0.14));transform-origin:center;animation:twinkle 2.6s infinite}
+    @keyframes twinkle{0%{opacity:.65;transform:scale(.98)}50%{opacity:1;transform:scale(1.06)}100%{opacity:.65;transform:scale(.98)}}
+
+    /* Sad page styles */
+    .sad{background:linear-gradient(180deg,#111115,#0b0b0b);color:var(--sad-ink)}
+    .sad .frame{max-width:720px;background:linear-gradient(180deg,#262626,#111111);padding:24px;border-radius:10px;color:var(--sad-ink);box-shadow:0 8px 30px rgba(0,0,0,.6)}
+    .chat{margin-top:14px;border-radius:8px;padding:10px;background:rgba(255,255,255,0.02)}
+    .chat .messages{height:200px;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+    .bubble{max-width:78%;padding:10px 12px;border-radius:12px;background:#0f0f0f;color:var(--sad-ink);align-self:flex-start}
+    .input-row{display:flex;gap:8px;margin-top:12px}
+    .input-row input{flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--sad-ink)}
+    .input-row button{padding:10px 14px;border-radius:8px;border:0;background:#222;color:var(--sad-ink);cursor:pointer}
+
+    /* small helper */
+    .top-right{position:absolute;right:18px;top:18px;color:rgba(255,255,255,0.85)}
+
+    /* responsive */
+    @media (max-width:600px){.choices{flex-direction:column}.card{width:90vw;height:140px}}
+  </style>
+</head>
+<body>
+
+  <!-- MAIN PAGE -->
+  <section id="main" class="page main">
+    <div class="star-wrap" aria-hidden="true">
+      <!-- star adapts color via CSS variable -->
+      <svg id="star-main" class="star" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="g1" cx="50%" cy="30%">
+            <stop offset="0%" stop-color="#fff7b2" />
+            <stop offset="60%" stop-color="#ffd166" />
+            <stop offset="100%" stop-color="#ffb703" />
+          </radialGradient>
+        </defs>
+        <path d="M12 2.5l1.94 4.92L19 8.1l-3.5 2.9L16.2 16 12 13.6 7.8 16l1.7-4.99L5 8.1l5.06-.68L12 2.5z" fill="url(#g1)"/>
+      </svg>
+    </div>
+
+    <div class="top-right">— Dime con sinceridad</div>
+    <h1 class="question">¿Cómo han estado estos días conmigo?</h1>
+
+    <div class="choices" role="list">
+      <div role="listitem" tabindex="0" class="card bien" id="btn-bien">Bien</div>
+      <div role="listitem" tabindex="0" class="card mal" id="btn-mal">Mal</div>
+    </div>
+
+    <div id="rain-main" class="rain-area" aria-hidden="true"></div>
+  </section>
+
+  <!-- BIEN PAGE -->
+  <section id="bien" class="page hidden" style="background:linear-gradient(180deg,#f9d423,#ff4e50,#e01e37);"">
+    <div class="star-wrap">
+      <!-- brighter golden star -->
+      <svg id="star-bien" class="star" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="g2" cx="50%" cy="30%">
+            <stop offset="0%" stop-color="#fff9d6" />
+            <stop offset="60%" stop-color="#ffdc73" />
+            <stop offset="100%" stop-color="#ffc436" />
+          </radialGradient>
+        </defs>
+        <path d="M12 2.5l1.94 4.92L19 8.1l-3.5 2.9L16.2 16 12 13.6 7.8 16l1.7-4.99L5 8.1l5.06-.68L12 2.5z" fill="url(#g2)"/>
+      </svg>
+    </div>
+
+    <div class="poem" role="article" aria-label="Poema para Vania" style="background:rgba(255,255,255,0.08);"color:#fff;cursor:pointer">Volver</button>
+        <small style="opacity:.8">— Gracias por ser así</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAL PAGE -->
+  <section id="mal" class="page hidden sad">
+    <div class="star-wrap">
+      <!-- star with muted color -->
+      <svg id="star-mal" class="star" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="g3" cx="50%" cy="30%">
+            <stop offset="0%" stop-color="#cdd6e0" />
+            <stop offset="100%" stop-color="#7b7f88" />
+          </radialGradient>
+        </defs>
+        <path d="M12 2.5l1.94 4.92L19 8.1l-3.5 2.9L16.2 16 12 13.6 7.8 16l1.7-4.99L5 8.1l5.06-.68L12 2.5z" fill="url(#g3)"/>
+      </svg>
+    </div>
+
+    <div class="frame" style="width:100%;max-width:720px">
+      <h2 style="margin:0 0 8px 0;color:var(--sad-ink)">Lo siento — cuéntame</h2>
+      <p style="margin:0 0 12px 0;color:rgba(255,255,255,.55)">¿Qué está mal? Dímelo por aquí, puedes escribir lo que quieras.</p>
+
+      <div class="chat">
+        <div class="messages" id="messages" aria-live="polite"></div>
+        <div class="input-row">
+          <input id="msg-input" placeholder="Escribe..." aria-label="Escribe lo que está mal" />
+          <button id="send-btn">Enviar</button>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;margin-top:12px">
+        <button id="back-from-mal" style="padding:8px 12px;border-radius:8px;border:0;background:#303030;color:#fff;cursor:pointer">Volver</button>
+        <small style="opacity:.7;color:var(--sad-ink)">No tienes que decirlo todo si no quieres</small>
+      </div>
+    </div>
+
+    <div id="rain-mal" class="rain-area" aria-hidden="true"></div>
+  </section>
+
+  <script>
+    // Simple page routing (single-file): show/hide sections
+    const main = document.getElementById('main');
+    const bien = document.getElementById('bien');
+    const mal = document.getElementById('mal');
+    const btnBien = document.getElementById('btn-bien');
+    const btnMal = document.getElementById('btn-mal');
+    const backBien = document.getElementById('back-from-bien');
+    const backMal = document.getElementById('back-from-mal');
+
+    function show(section){ main.classList.add('hidden'); bien.classList.add('hidden'); mal.classList.add('hidden'); section.classList.remove('hidden'); window.scrollTo(0,0); }
+
+    btnBien.addEventListener('click', ()=> show(bien));
+    btnMal.addEventListener('click', ()=> show(mal));
+    backBien.addEventListener('click', ()=> show(main));
+    backMal.addEventListener('click', ()=> show(main));
+
+    // Keyboard accessibility
+    [btnBien, btnMal].forEach(el=>{
+      el.addEventListener('keydown', e=>{ if(e.key === 'Enter' || e.key === ' ') el.click(); })
+    });
+
+    // create falling dots for main page (glowing blue dots)
+    function makeRain(container, count, opts={colors:['#fff'], glow:'rgba(77,166,255,0.18)', size:[4,8], speed:[6,14]}){
+      const w = container.clientWidth || window.innerWidth;
+      const h = container.clientHeight || window.innerHeight;
+      for(let i=0;i<count;i++){
+        const d = document.createElement('div');
+        d.className='dot';
+        const s = Math.random()*(opts.size[1]-opts.size[0]) + opts.size[0];
+        d.style.width = s+'px'; d.style.height = s+'px';
+        d.style.left = Math.random()*100 + '%';
+        d.style.top = (-Math.random()*30-5) + '%';
+        d.style.opacity = 0.6 + Math.random()*0.4;
+        d.style.boxShadow = `0 0 ${8 + Math.random()*20}px ${opts.glow}`;
+        container.appendChild(d);
+        // animate via JS for variable speed
+        const duration = (Math.random()*(opts.speed[1]-opts.speed[0]) + opts.speed[0]) * 1000;
+        const delay = Math.random()*2000;
+        d.animate([
+          {transform:`translateY(0px)`, opacity:d.style.opacity},
+          {transform:`translateY(${h + 100}px)`, opacity:0.05}
+        ],{duration,iterations:Infinity,easing:'linear',delay});
+      }
+    }
+
+    // create blinking falling dots for mal page
+    function makeSadRain(container, count){
+      const colors = ['#bdbdbd','#999','#dfe6ee'];
+      for(let i=0;i<count;i++){
+        const d = document.createElement('div'); d.className='dot';
+        const s = Math.random()*6 + 3; d.style.width=s+'px'; d.style.height=s+'px';
+        d.style.left = Math.random()*100 + '%'; d.style.top = (-Math.random()*30-5) + '%';
+        d.style.background = colors[Math.floor(Math.random()*colors.length)];
+        d.style.boxShadow = '0 0 10px rgba(0,0,0,0.25)'; container.appendChild(d);
+        const duration = (Math.random()*7000)+4000;
+        d.animate([
+          {transform:'translateY(0)', opacity:0.9},
+          {transform:`translateY(${window.innerHeight + 150}px)`, opacity:0.05}
+        ],{duration,iterations:Infinity,easing:'linear',delay:Math.random()*2000});
+        // blinking
+        d.animate([{opacity:0.95},{opacity:0.15},{opacity:0.95}],{duration:1200 + Math.random()*1200,iterations:Infinity});
+      }
+    }
+
+    // Initialize rains
+    makeRain(document.getElementById('rain-main'), 40);
+    makeSadRain(document.getElementById('rain-mal'), 50);
+
+    // Chat sending on mal page (client-side only)
+    const messages = document.getElementById('messages');
+    const input = document.getElementById('msg-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    function addBubble(text, isUser=true){
+      const b = document.createElement('div'); b.className='bubble'; b.textContent = text;
+      if(isUser) b.style.alignSelf='flex-end';
+      messages.appendChild(b); messages.scrollTop = messages.scrollHeight;
+    }
+
+    sendBtn.addEventListener('click', ()=>{
+      const t = input.value.trim(); if(!t) return; addBubble(t,true); input.value=''; setTimeout(()=>{
+        const reply = 'Gracias por compartirlo. Te leo.'; addBubble(reply,false);
+      },600);
+    });
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter') sendBtn.click(); });
+
+    // Resize handling — keep rain feeling correct on orientation change
+    window.addEventListener('resize', ()=>{
+      // optional: nothing heavy here; animations use viewport size
+    });
+  </script>
+</body>
+</html>
